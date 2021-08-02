@@ -1,23 +1,22 @@
 use typehash::TypeHash;
 
-mod o {
-    use super::*;
-    #[derive(TypeHash)]
-    pub struct Other;
-}
+#[derive(TypeHash)]
+struct Empty;
 
 #[derive(TypeHash)]
 struct Tuple(usize, usize, u64);
 
 #[derive(TypeHash)]
 struct Fields {
-    _a: usize,
-    _b: usize,
-    _c: o::Other,
-    _t: Tuple,
+    _empty: Empty,
+    _usize_a: usize,
+    _usize_b: usize,
+    _tuple: Tuple,
+    _array8: [usize; 8],
+    _array9: [usize; 10],
 }
 
 fn main() {
-    dbg!(Tuple::type_string());
     dbg!(Fields::type_string());
+    dbg!(Fields::type_hash());
 }

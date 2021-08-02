@@ -1,4 +1,7 @@
-use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
 pub use typehash_macro::*;
 
@@ -23,6 +26,12 @@ impl TypeHash for u64 {
     }
 }
 
+impl<T: TypeHash, const N: usize> TypeHash for [T; N] {
+    fn type_string() -> String {
+        format!("[{};{}]", T::type_hash(), N)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -31,26 +40,48 @@ mod test {
     fn struct_empty() {
         #[derive(TypeHash)]
         struct Empty;
-        assert_eq!("(struct Empty)", &Empty::type_string());
+        assert_eq!("struct Empty { }", &Empty::type_string());
     }
 
     #[test]
     fn struct_tuple() {
         #[derive(TypeHash)]
         struct Tuple(usize, usize);
-        assert_eq!("(struct Tuple (0) (1))", &Tuple::type_string());
-    }
-
-    mod o {
-        use super::*;
-        #[derive(TypeHash)]
-        pub struct Other;
+        let expected = format!(
+            "struct Tuple {{ 0: usize={:016X}, 1: usize={:016X}, }}",
+            usize::type_hash(),
+            usize::type_hash()
+        );
+        assert_eq!(expected, Tuple::type_string());
     }
 
     #[test]
     fn struct_fields() {
         #[derive(TypeHash)]
-        struct Fields{ _a: usize, _b: usize, _c: o::Other }
-        assert_eq!("(struct Fields (_a) (_b))", &Fields::type_string());
+        struct Fields {
+            _a: usize,
+            _b: usize,
+        }
+        let expected = format!(
+            "struct Fields {{ _a: usize={:016X}, _b: usize={:016X}, }}",
+            usize::type_hash(),
+            usize::type_hash()
+        );
+        assert_eq!(expected, Fields::type_string());
+    }
+
+    #[test]
+    fn struct_with_array() {
+        #[derive(TypeHash)]
+        struct Arrays {
+            _a: [usize; 16],
+            _b: [usize; 17],
+        }
+        let expected = format!(
+            "struct Arrays {{ _a: [usize ; 16]={:016X}, _b: [usize ; 17]={:016X}, }}",
+            <[usize; 16]>::type_hash(),
+            <[usize; 17]>::type_hash()
+        );
+        assert_eq!(expected, Arrays::type_string());
     }
 }

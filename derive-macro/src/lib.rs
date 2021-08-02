@@ -1,4 +1,4 @@
-use quote::quote;
+use quote::{ToTokens, quote};
 use syn::{parse_macro_input, DataStruct, DeriveInput, Field, Ident, Result, Type};
 
 enum Input<'a> {
@@ -44,19 +44,60 @@ impl<'a> Input<'a> {
     }
 }
 
+fn type_requires_qualification(ty: &Type) -> std::result::Result<(), String> {
+    match ty {
+        Type::Array(a) => {
+            type_requires_qualification(&a.elem)
+        },
+        Type::BareFn(_) => Err("barefn".into()),
+        Type::Group(_) => Err("group".into()),
+        Type::ImplTrait(_) => Err("impltrait".into()),
+        Type::Infer(_) => Err("infer".into()),
+        Type::Macro(_) => Err("macro".into()),
+        Type::Never(_) => Err("never".into()),
+        Type::Paren(_) => Err("paren".into()),
+        Type::Path(p) => {
+            if p.path.get_ident().is_none() {
+                let x = p.path.to_token_stream();
+                let errstr = format!("type is not an ident: {}", x);
+                Err(errstr)
+            } else {
+                Ok(())
+            }
+        },
+        Type::Ptr(_) => Err("ptr".into()),
+        Type::Reference(_) => Err("reference".into()),
+        Type::Slice(_) => Err("slice".into()),
+        Type::TraitObject(_) => Err("traitobject".into()),
+        Type::Tuple(_) => Err("tuple".into()),
+        Type::Verbatim(_) => Err("verbatim".into()),
+        Type::__TestExhaustive(_) => panic!("test-exhaustive"),
+    }
+}
+
 fn impl_struct(input: Struct) -> proc_macro2::TokenStream {
     let ident = input.ident;
-    let s = format!("struct {} {{", ident);
+    let s = format!("struct {} {{ ", ident);
     let fields = input.fields.iter().map(|f| {
         let ident = &f.ident;
         let ty = &f.ty;
-        quote! {
-            s.push_str(#ident);
-            s.push_str(": ");
-            s.push_str(stringify!(#ty));
-            s.push_str("=");
-            s.push_str(&format!("{:016X}", &<#ty>::type_hash()));
-            s.push_str(", ");
+        if let Err(estr) = type_requires_qualification(ty) {
+            let errstr = format!(
+                "Field {} refers to a type in an unsupported way: {}",
+                ident, estr
+            );
+            quote! {
+                compile_error!(#errstr);
+            }
+        } else {
+            quote! {
+                s.push_str(#ident);
+                s.push_str(": ");
+                s.push_str(stringify!(#ty));
+                s.push_str("=");
+                s.push_str(&format!("{:016X}", &<#ty>::type_hash()));
+                s.push_str(", ");
+            }
         }
     });
 
