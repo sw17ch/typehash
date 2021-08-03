@@ -16,7 +16,13 @@ struct Fields {
     _array9: [usize; 10],
 }
 
+#[derive(TypeHash)]
+struct SelfRef {
+    _ref: *const SelfRef,
+}
+
 fn main() {
     dbg!(Fields::type_string());
     dbg!(Fields::type_hash());
+    dbg!(SelfRef::type_string());
 }

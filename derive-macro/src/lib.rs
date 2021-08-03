@@ -1,4 +1,4 @@
-use quote::{ToTokens, quote};
+use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DataStruct, DeriveInput, Field, Ident, Result, Type};
 
 enum Input<'a> {
@@ -44,11 +44,9 @@ impl<'a> Input<'a> {
     }
 }
 
-fn type_requires_qualification(ty: &Type) -> std::result::Result<(), String> {
+fn check_type_impl(ty: &Type, seen: &mut Vec<Ident>) -> std::result::Result<(), String> {
     match ty {
-        Type::Array(a) => {
-            type_requires_qualification(&a.elem)
-        },
+        Type::Array(a) => check_type_impl(&a.elem, seen),
         Type::BareFn(_) => Err("barefn".into()),
         Type::Group(_) => Err("group".into()),
         Type::ImplTrait(_) => Err("impltrait".into()),
@@ -57,15 +55,20 @@ fn type_requires_qualification(ty: &Type) -> std::result::Result<(), String> {
         Type::Never(_) => Err("never".into()),
         Type::Paren(_) => Err("paren".into()),
         Type::Path(p) => {
-            if p.path.get_ident().is_none() {
+            if let Some(ident) = p.path.get_ident() {
+                if seen.iter().find(|i| *i == ident).is_some() {
+                    Err("recursive type detected".into())
+                } else {
+                    seen.push(ident.clone());
+                    Ok(())
+                }
+            } else {
                 let x = p.path.to_token_stream();
                 let errstr = format!("type is not an ident: {}", x);
                 Err(errstr)
-            } else {
-                Ok(())
             }
-        },
-        Type::Ptr(_) => Err("ptr".into()),
+        }
+        Type::Ptr(p) => check_type_impl(&p.elem, seen),
         Type::Reference(_) => Err("reference".into()),
         Type::Slice(_) => Err("slice".into()),
         Type::TraitObject(_) => Err("traitobject".into()),
@@ -75,23 +78,28 @@ fn type_requires_qualification(ty: &Type) -> std::result::Result<(), String> {
     }
 }
 
+fn check_type(ident: &Ident, ty: &Type) -> std::result::Result<(), String> {
+    let mut seen = vec![ident.clone()];
+    check_type_impl(ty, &mut seen)
+}
+
 fn impl_struct(input: Struct) -> proc_macro2::TokenStream {
     let ident = input.ident;
     let s = format!("struct {} {{ ", ident);
     let fields = input.fields.iter().map(|f| {
-        let ident = &f.ident;
+        let field_ident = &f.ident;
         let ty = &f.ty;
-        if let Err(estr) = type_requires_qualification(ty) {
+        if let Err(estr) = check_type(ident, ty) {
             let errstr = format!(
                 "Field {} refers to a type in an unsupported way: {}",
-                ident, estr
+                field_ident, estr
             );
             quote! {
                 compile_error!(#errstr);
             }
         } else {
             quote! {
-                s.push_str(#ident);
+                s.push_str(#field_ident);
                 s.push_str(": ");
                 s.push_str(stringify!(#ty));
                 s.push_str("=");
@@ -127,3 +135,6 @@ pub fn derive_type_hash(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 
     proc_macro::TokenStream::from(output)
 }
+
+#[cfg(test)]
+mod test {}

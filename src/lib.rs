@@ -32,6 +32,12 @@ impl<T: TypeHash, const N: usize> TypeHash for [T; N] {
     }
 }
 
+impl<T: TypeHash> TypeHash for *const T {
+    fn type_string() -> String {
+        format!("*const {}", T::type_hash())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
