@@ -91,7 +91,7 @@ fn impl_struct(input: Struct) -> proc_macro2::TokenStream {
         let ty = &f.ty;
         if let Err(estr) = check_type(ident, ty) {
             let errstr = format!(
-                "Field {} refers to a type in an unsupported way: {}",
+                "The type referred to by field '{}' is not supported: {}.",
                 field_ident, estr
             );
             quote! {
