@@ -135,6 +135,3 @@ pub fn derive_type_hash(input: proc_macro::TokenStream) -> proc_macro::TokenStre
 
     proc_macro::TokenStream::from(output)
 }
-
-#[cfg(test)]
-mod test {}

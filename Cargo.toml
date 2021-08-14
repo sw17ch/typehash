@@ -7,3 +7,8 @@ edition = "2018"
 
 [dependencies]
 typehash-macro = { path = "derive-macro" }
+
+[dev-dependencies]
+trybuild = "1.0"
+rustversion = "1.0"
+walkdir = "2.3"
