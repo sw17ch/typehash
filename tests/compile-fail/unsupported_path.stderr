@@ -1,0 +1,7 @@
+error: The type referred to by field '_other' is not supported: type is not an ident: m :: Other.
+  --> $DIR/unsupported_path.rs:11:10
+   |
+11 | #[derive(TypeString)]
+   |          ^^^^^^^^^^
+   |
+   = note: this error originates in the derive macro `TypeString` (in Nightly builds, run with -Z macro-backtrace for more info)

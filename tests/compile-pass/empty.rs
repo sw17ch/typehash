@@ -1,8 +1,8 @@
 //! Test that we can compile an empty struct.
 
-use typehash::TypeHash;
+use typehash::TypeString;
 
-#[derive(TypeHash)]
+#[derive(TypeString)]
 struct Empty;
 
 fn main() {}

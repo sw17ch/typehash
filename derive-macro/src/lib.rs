@@ -56,12 +56,8 @@ fn check_type_impl(ty: &Type, seen: &mut Vec<Ident>) -> std::result::Result<(), 
         Type::Paren(_) => Err("paren".into()),
         Type::Path(p) => {
             if let Some(ident) = p.path.get_ident() {
-                if seen.iter().find(|i| *i == ident).is_some() {
-                    Err("recursive type detected".into())
-                } else {
-                    seen.push(ident.clone());
-                    Ok(())
-                }
+                seen.push(ident.clone());
+                Ok(())
             } else {
                 let x = p.path.to_token_stream();
                 let errstr = format!("type is not an ident: {}", x);
@@ -98,30 +94,38 @@ fn impl_struct(input: Struct) -> proc_macro2::TokenStream {
                 compile_error!(#errstr);
             }
         } else {
+            let x = format!("{}: ", field_ident);
             quote! {
-                s.push_str(#field_ident);
-                s.push_str(": ");
-                s.push_str(stringify!(#ty));
-                s.push_str("=");
-                s.push_str(&format!("{:016X}", &<#ty>::type_hash()));
+                s.push_str(#x);
+                seen.push(stringify!(#ident));
+                s.push_str(&format!("<{}>", & <#ty>::type_string_impl(seen)));
+                let _ = seen.pop();
                 s.push_str(", ");
             }
         }
     });
 
     quote! {
-        impl TypeHash for #ident {
-            fn type_string() -> String {
-                let mut s: String = #s.into();
-                #(#fields)*
-                s.push('}');
-                s
+        impl TypeString for #ident {
+            fn type_name() -> &'static str {
+                stringify!(#ident)
+            }
+            fn type_string_impl(seen: &mut Vec<&'static str>) -> String {
+                let me = stringify!(#ident);
+                if seen.iter().find(|s| **s == me).is_some() {
+                    format!("RECURSIVE({})", me)
+                } else {
+                    let mut s: String = #s.into();
+                    #(#fields)*
+                    s.push('}');
+                    s
+                }
             }
         }
     }
 }
 
-#[proc_macro_derive(TypeHash)]
+#[proc_macro_derive(TypeString)]
 pub fn derive_type_hash(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let input = match Input::from_syn(&input) {

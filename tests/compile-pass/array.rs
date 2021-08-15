@@ -1,8 +1,8 @@
 //! Test that we can compile a struct holding a arrays.
 
-use typehash::TypeHash;
+use typehash::TypeString;
 
-#[derive(TypeHash)]
+#[derive(TypeString)]
 struct Fields {
     _array0: [usize; 0],
     _array1: [usize; 1],

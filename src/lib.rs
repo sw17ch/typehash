@@ -6,7 +6,10 @@ use std::{
 pub use typehash_macro::*;
 
 pub trait TypeHash {
-    fn type_string() -> String;
+    fn type_hash() -> u64;
+}
+
+impl<T: TypeString> TypeHash for T {
     fn type_hash() -> u64 {
         let mut hasher = DefaultHasher::new();
         Self::type_string().hash(&mut hasher);
@@ -14,27 +17,48 @@ pub trait TypeHash {
     }
 }
 
-impl TypeHash for usize {
+pub trait TypeString {
+    fn type_name() -> &'static str;
+    fn type_string_impl(seen: &mut Vec<&'static str>) -> String;
     fn type_string() -> String {
-        "usize".into()
+        let mut seen = Vec::new();
+        Self::type_string_impl(&mut seen)
     }
 }
 
-impl TypeHash for u64 {
-    fn type_string() -> String {
-        "u64".into()
+impl TypeString for usize {
+    fn type_name() -> &'static str {
+        "usize"
+    }
+    fn type_string_impl(_seen: &mut Vec<&'static str>) -> String {
+        Self::type_name().into()
     }
 }
 
-impl<T: TypeHash, const N: usize> TypeHash for [T; N] {
-    fn type_string() -> String {
-        format!("[{};{}]", T::type_hash(), N)
+impl TypeString for u64 {
+    fn type_name() -> &'static str {
+        "u64"
+    }
+    fn type_string_impl(_seen: &mut Vec<&'static str>) -> String {
+        Self::type_name().into()
     }
 }
 
-impl<T: TypeHash> TypeHash for *const T {
-    fn type_string() -> String {
-        format!("*const {}", T::type_hash())
+impl<T: TypeString, const N: usize> TypeString for [T; N] {
+    fn type_name() -> &'static str {
+        T::type_name()
+    }
+    fn type_string_impl(seen: &mut Vec<&'static str>) -> String {
+        format!("[{};{}]", T::type_string_impl(seen), N)
+    }
+}
+
+impl<T: TypeString> TypeString for *const T {
+    fn type_name() -> &'static str {
+        T::type_name()
+    }
+    fn type_string_impl(seen: &mut Vec<&'static str>) -> String {
+        format!("*const {}", T::type_string_impl(seen))
     }
 }
 
@@ -44,50 +68,38 @@ mod test {
 
     #[test]
     fn struct_empty() {
-        #[derive(TypeHash)]
+        #[derive(TypeString)]
         struct Empty;
         assert_eq!("struct Empty { }", &Empty::type_string());
     }
 
     #[test]
     fn struct_tuple() {
-        #[derive(TypeHash)]
+        #[derive(TypeString)]
         struct Tuple(usize, usize);
-        let expected = format!(
-            "struct Tuple {{ 0: usize={:016X}, 1: usize={:016X}, }}",
-            usize::type_hash(),
-            usize::type_hash()
-        );
+        let expected = "struct Tuple { 0: <usize>, 1: <usize>, }";
         assert_eq!(expected, Tuple::type_string());
     }
 
     #[test]
     fn struct_fields() {
-        #[derive(TypeHash)]
+        #[derive(TypeString)]
         struct Fields {
             _a: usize,
             _b: usize,
         }
-        let expected = format!(
-            "struct Fields {{ _a: usize={:016X}, _b: usize={:016X}, }}",
-            usize::type_hash(),
-            usize::type_hash()
-        );
+        let expected = "struct Fields { _a: <usize>, _b: <usize>, }";
         assert_eq!(expected, Fields::type_string());
     }
 
     #[test]
     fn struct_with_array() {
-        #[derive(TypeHash)]
+        #[derive(TypeString)]
         struct Arrays {
             _a: [usize; 16],
             _b: [usize; 17],
         }
-        let expected = format!(
-            "struct Arrays {{ _a: [usize ; 16]={:016X}, _b: [usize ; 17]={:016X}, }}",
-            <[usize; 16]>::type_hash(),
-            <[usize; 17]>::type_hash()
-        );
+        let expected = "struct Arrays { _a: <[usize;16]>, _b: <[usize;17]>, }";
         assert_eq!(expected, Arrays::type_string());
     }
 }

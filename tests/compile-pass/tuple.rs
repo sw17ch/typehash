@@ -1,8 +1,8 @@
 //! Test that we can compile a tuple struct.
 
-use typehash::TypeHash;
+use typehash::TypeString;
 
-#[derive(TypeHash)]
+#[derive(TypeString)]
 struct Tuple(usize, usize, u64);
 
 fn main() {}
